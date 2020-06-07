@@ -1,5 +1,8 @@
 package com.recommend.business.controller;
 
+import com.recommend.business.bean.AuthResponse;
+import com.recommend.business.bean.ListData;
+import com.recommend.business.bean.ListResult;
 import com.recommend.business.dao.BusinessDao;
 import com.recommend.business.dao.BusinessEsDao;
 import com.recommend.business.entity.Business;
@@ -12,8 +15,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 
 @RestController
@@ -38,13 +44,13 @@ public class BusinessController {
     }
 
     @RequestMapping(value = "/queryBusinesses", method = RequestMethod.GET)
-    public Iterable<BusinessEs> queryBusinesses(@RequestParam(required = false) Integer page,
-                                                @RequestParam(required = false) Integer size) {
+    public Object queryBusinesses(@RequestParam(required = false) Integer page,
+                                  @RequestParam(required = false) Integer size) {
         if (size == null) size = 10;
-        if(page==null) page=0;
+        if (page == null) page = 0;
         Pageable pageable = PageRequest.of(page, size);
-        Page<BusinessEs> rs =  this.businessEsDao.findAll(pageable);
-        return  rs.toList();
+        Page<BusinessEs> rs = this.businessEsDao.findAll(pageable);
+        return getResult(rs);
     }
 
     @RequestMapping(value = "/queryBusinessById", method = RequestMethod.GET)
@@ -54,31 +60,66 @@ public class BusinessController {
 
     @RequestMapping(value = "/queryBusinessByName")
     public Object queryBusinessByName(@RequestParam String name,
-                        @RequestParam(required = false) Integer page,
-                        @RequestParam(required = false) Integer size) {
+                                      @RequestParam(required = false) Integer page,
+                                      @RequestParam(required = false) Integer size) {
         if (size == null) size = 10;
-        if(page==null) page=0;
+        if (page == null) page = 0;
         Pageable pageable = PageRequest.of(page, size);
-        Page<BusinessEs> rs =  this.businessEsDao.findByNameLike(name, pageable);
-        return  rs.toList();
+        Page<BusinessEs> rs = this.businessEsDao.findByNameLike(name, pageable);
+
+        return getResult(rs);
     }
 
     @RequestMapping(value = "/sortBusinessByCategories")
     public Object sortBusinessByCategories(@RequestParam String categories,
-                                      @RequestParam(required = false) Integer page,
-                                      @RequestParam(required = false) Integer size) {
+                                           @RequestParam(required = false) Integer page,
+                                           @RequestParam(required = false) Integer size) {
         if (size == null) size = 10;
-        if(page==null) page=0;
+        if (page == null) page = 0;
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "stars"));
-        Page<BusinessEs> rs =  this.businessEsDao.findByCategories(categories.trim(), pageable);
-        return  rs.toList();
+        Page<BusinessEs> rs = this.businessEsDao.findByCategories(categories.trim(), pageable);
+
+        return getResult(rs);
     }
 
-    @RequestMapping(value = "/updateBusiness",method = RequestMethod.PUT)
-    public String updateBusiness(@RequestBody BusinessEs data) {
+    private Object getResult(Page<BusinessEs> rs) {
+        List<BusinessEs> list = rs.toList();
+
+        ListData data = new ListData();
+        data.setNum(list.size());
+        data.setDataList(list);
+
+        ListResult result = new ListResult();
+        result.setCode(200);
+        result.setMsg("成功");
+        result.setData(data);
+
+        return result;
+    }
+
+    @RequestMapping(value = "/updateBusiness", method = RequestMethod.PUT)
+    public Object updateBusiness(HttpServletRequest request,
+                                 HttpServletResponse response,
+                                 @RequestBody BusinessEs data) {
+        String token = request.getHeader("token");
+
+        AuthResponse authRes = this.authService.auth(token);
+
+        if (authRes.getCode() != 200 || !authRes.getData().getUserId().equals(data.getBusinessId())) {
+            ListResult result = new ListResult();
+            result.setCode(401);
+            result.setMsg("您不是该商户，无法修改商户信息");
+            response.setStatus(401);
+            return result;
+        }
+
         this.businessEsDao.save(data);
+        ListResult result = new ListResult();
+        result.setCode(200);
+        result.setMsg("修改成功");
+
         //Business business=new Business(data.getBusinessId(),data.getName(),data.getAddress(),data.getCity(),data.getState(),data.getPostalCode(),data.getLatitude(),data.getLongitude(),data.getStars(),data.getReviewCount(),data.getIsOpen(),data.getAttributes(),data.getCategories(),data.getHours());
-        Business business=new Business();
+        Business business = new Business();
         business.setBusinessId(data.getBusinessId());
         business.setName(data.getName());
         business.setAddress(data.getAddress());
@@ -94,7 +135,7 @@ public class BusinessController {
         business.setCategories(data.getCategories());
         business.setHours(data.getHours());
         businessDao.save(business);
-        return "success";
+        return result;
     }
 
     @RequestMapping("/init")

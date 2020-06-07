@@ -1,10 +1,8 @@
 package com.recommend.business.bean;
 
-import lombok.Data;
-
-@Data
-public class AuthResponse {
+@lombok.Data
+public class ListResult {
     Integer code;
     String msg;
-    AuthData data;
+    ListData data;
 }

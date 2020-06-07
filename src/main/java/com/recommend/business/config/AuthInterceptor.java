@@ -37,7 +37,7 @@ public class AuthInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
 
         String token = request.getHeader("token");
-        System.out.println(token);
+        //System.out.println(token);
         if (token == null || this.authService.auth(token).getCode() != 200) {
             AuthResponse authResponse = new AuthResponse();
             authResponse.setCode(500);
